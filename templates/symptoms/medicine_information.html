@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Medicine Information - MedRemind{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Medicine Information</h2>
+        <p class="text-muted mb-0">Search official FDA product labels for general educational information.</p>
+    </div>
+    <a href="{% url 'symptoms:disease_list' %}" class="btn btn-outline-secondary">Health information</a>
+</div>
+<div class="alert alert-warning border-0" role="note">{{ disclaimer }}</div>
+<form method="get" class="card border-0 p-4 shadow-sm mb-4">
+    <label for="medicine-query" class="form-label fw-semibold">Medicine name</label>
+    <div class="input-group">
+        <input type="search" class="form-control" id="medicine-query" name="q" maxlength="100" required value="{{ query }}" placeholder="Enter a medicine name">
+        <button type="submit" class="btn btn-primary" id="medicine-search-button">
+            <i class="fa-solid fa-magnifying-glass me-2"></i>Search FDA labels
+        </button>
+    </div>
+    <span id="medicine-search-loading" class="small text-muted mt-2 d-none" role="status">Searching FDA labels…</span>
+</form>
+{% if lookup_error %}
+<div class="alert alert-danger" role="alert">{{ lookup_error }}</div>
+{% elif query and not medicines %}
+<div class="alert alert-info" role="status">No FDA labels were found for “{{ query }}”. Try a brand or generic name. No medicine recommendation is being made.</div>
+{% endif %}
+{% for medicine in medicines %}
+<article class="card border-0 p-4 shadow-sm mb-3">
+    <h3 class="h4 fw-bold">{{ medicine.name }}</h3>
+    {% if medicine.generic_name %}<p><strong>Generic name in label:</strong> {{ medicine.generic_name }}</p>{% endif %}
+    <p><strong>Prescription classification in returned label:</strong> {{ medicine.prescription_status }}</p>
+    {% if medicine.purpose %}<h4 class="h6 fw-bold">Label purpose</h4><p>{{ medicine.purpose|linebreaksbr }}</p>{% endif %}
+    {% if medicine.indications %}<h4 class="h6 fw-bold">Uses stated in label</h4><p>{{ medicine.indications|linebreaksbr }}</p>{% endif %}
+    {% if medicine.warnings %}<h4 class="h6 fw-bold">Warnings</h4><p>{{ medicine.warnings|linebreaksbr }}</p>{% endif %}
+    {% if medicine.do_not_use %}<h4 class="h6 fw-bold">Do not use</h4><p>{{ medicine.do_not_use|linebreaksbr }}</p>{% endif %}
+    {% if medicine.ask_doctor %}<h4 class="h6 fw-bold">Ask a healthcare professional</h4><p>{{ medicine.ask_doctor|linebreaksbr }}</p>{% endif %}
+    {% if medicine.stop_use %}<h4 class="h6 fw-bold">When to stop use, according to label</h4><p>{{ medicine.stop_use|linebreaksbr }}</p>{% endif %}
+    {% if medicine.pregnancy %}<h4 class="h6 fw-bold">Pregnancy or breastfeeding information</h4><p>{{ medicine.pregnancy|linebreaksbr }}</p>{% endif %}
+    <p class="text-muted small">FDA submitted product labels can vary by product and may not reflect the label on a currently marketed product. Do not use this information to choose or dose a medicine.</p>
+    <a href="{{ medicine.source_url }}" target="_blank" rel="noopener noreferrer">Open official label · {{ medicine.source_name }}</a>
+</article>
+{% endfor %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const form = document.querySelector("form");
+        form.addEventListener("submit", function() {
+            document.getElementById("medicine-search-button").disabled = true;
+            document.getElementById("medicine-search-loading").classList.remove("d-none");
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Caregiver - Medicine Reminder{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm p-4">
+            <h3 class="fw-bold mb-4">Edit Caregiver</h3>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="id_caregiver_name" class="form-label">Name</label>
+                    {{ form.caregiver_name }}
+                </div>
+                <div class="mb-3">
+                    <label for="id_caregiver_phone" class="form-label">Phone</label>
+                    {{ form.caregiver_phone }}
+                </div>
+                <div class="mb-3">
+                    <label for="id_caregiver_email" class="form-label">Email</label>
+                    {{ form.caregiver_email }}
+                </div>
+                <div class="form-check form-switch mb-2">
+                    {{ form.can_view_dashboard }}
+                    <label class="form-check-label" for="id_can_view_dashboard">Can view dashboard</label>
+                </div>
+                <div class="form-check form-switch mb-2">
+                    {{ form.can_receive_reminders }}
+                    <label class="form-check-label" for="id_can_receive_reminders">Receive reminders</label>
+                </div>
+                <div class="form-check form-switch mb-3">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="id_is_active">Active</label>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <a href="{% url 'caregiver_access' %}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

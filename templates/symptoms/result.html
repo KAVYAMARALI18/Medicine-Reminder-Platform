@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Symptom Assessment - MedRemind{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Assessment information</h2>
+        <p class="text-muted mb-0">Saved {{ assessment.created_at|date:"M j, Y, P" }} · Duration: {{ assessment.duration }}</p>
+    </div>
+    <a href="{% url 'symptoms:checker' %}" class="btn btn-outline-primary">Start another assessment</a>
+</div>
+
+<div class="alert alert-warning border-0" role="note">
+    <i class="fa-solid fa-circle-info me-2"></i>{{ disclaimer }}
+</div>
+
+<div class="card border-0 p-4 shadow-sm mb-4">
+    <h5 class="fw-bold">Selected symptoms</h5>
+    <div class="d-flex flex-wrap gap-2">
+        {% for symptom in assessment.symptoms.all %}
+        <span class="badge rounded-pill bg-primary">{{ symptom.name }}</span>
+        {% endfor %}
+    </div>
+    {% if assessment.additional_notes %}
+    <h6 class="fw-semibold mt-3">Additional information</h6>
+    <p class="mb-0">{{ assessment.additional_notes|linebreaksbr }}</p>
+    {% endif %}
+</div>
+
+{% if assessment.assessment_summary.is_emergency %}
+<div class="alert alert-danger border border-danger border-2 p-4" role="alert">
+    <h3 class="h4 fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i>Seek immediate medical attention</h3>
+    <p>{{ assessment.assessment_summary.emergency_guidance }}</p>
+    {% for alert in assessment.assessment_summary.emergency_matches %}
+    <p class="mb-2"><strong>{{ alert.symptom }}:</strong> {{ alert.warning }}
+        <a href="{{ alert.source_url }}" target="_blank" rel="noopener noreferrer">{{ alert.source_name }}</a>
+    </p>
+    {% endfor %}
+    <p class="fw-semibold mb-0">Routine symptom matching was not performed for this assessment. This warning list is not exhaustive.</p>
+</div>
+{% elif conditions %}
+<h3 class="h4 fw-bold mb-3">General information related to selected symptoms</h3>
+<p class="text-muted">These are source-based symptom overlaps only. They are not diagnoses, likelihood estimates, or a complete list of possible causes.</p>
+<div class="row g-3">
+    {% for result in conditions %}
+    <div class="col-12">
+        <div class="card border-0 p-4 shadow-sm h-100">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                <h4 class="h5 fw-bold">{{ result.disease.name }}</h4>
+                <a href="{% url 'symptoms:disease_detail' result.disease.pk %}" class="btn btn-sm btn-outline-primary">Read health information</a>
+            </div>
+            <p>{{ result.disease.description }}</p>
+            <p>{{ result.disease.general_information }}</p>
+            <p><strong>Symptoms matching the cited source:</strong> {{ result.matched_symptoms|join:", " }}</p>
+            <p><strong>When to seek care:</strong> {{ result.disease.medical_care_guidance }}</p>
+            <a href="{{ result.disease.source_url }}" target="_blank" rel="noopener noreferrer">{{ result.disease.source_name }}</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card border-0 p-4 shadow-sm">
+    <h3 class="h5 fw-bold">No matching information in this limited dataset</h3>
+    <p class="mb-0">The selected symptoms did not match the reviewed associations currently available. This does not mean that no condition is present or that you are safe. Speak with a healthcare professional if you are concerned.</p>
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <a href="{% url 'symptoms:medicine_information' %}" class="btn btn-outline-secondary">Look up official medicine information</a>
+    <a href="{% url 'symptoms:assessment_history' %}" class="btn btn-link">View assessment history</a>
+</div>
+{% endblock %}

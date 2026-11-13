@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Medicine QR - Medicine Reminder{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Scan medicine QR code</h2>
+    <a href="{% url 'medicine_list' %}" class="btn btn-outline-secondary">Back to medicines</a>
+</div>
+
+<div class="card border-0 p-4 shadow-sm">
+    <p class="text-muted">Scan a personal MedRemind QR code or a sample medicine QR code. Sample codes show medicines matching their name.</p>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <button type="button" class="btn btn-primary" id="start-qr-camera"><i class="fa-solid fa-camera me-2"></i>Start camera</button>
+        <button type="button" class="btn btn-outline-secondary" id="stop-qr-camera" disabled>Stop camera</button>
+        <label for="qr-image-input" class="btn btn-outline-primary mb-0"><i class="fa-regular fa-image me-2"></i>Choose QR image</label>
+        <input type="file" id="qr-image-input" accept="image/*" class="visually-hidden">
+    </div>
+    <video id="qr-video" class="w-100 rounded d-none" autoplay muted playsinline style="max-height: 480px; object-fit: contain;"></video>
+    <p id="qr-scan-status" class="mb-0" aria-live="polite">Camera access requires HTTPS or localhost.</p>
+</div>
+<canvas id="qr-canvas" class="d-none"></canvas>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const video = document.getElementById("qr-video");
+        const canvas = document.getElementById("qr-canvas");
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        const status = document.getElementById("qr-scan-status");
+        const startButton = document.getElementById("start-qr-camera");
+        const stopButton = document.getElementById("stop-qr-camera");
+        const imageInput = document.getElementById("qr-image-input");
+        let cameraStream = null;
+        let animationFrame = null;
+        let lastScanAt = 0;
+
+        const stopCamera = () => {
+            if (animationFrame !== null) cancelAnimationFrame(animationFrame);
+            animationFrame = null;
+            if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+            video.srcObject = null;
+            video.classList.add("d-none");
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        };
+
+        const openDecodedCode = (value) => {
+            let scannedUrl;
+            try {
+                scannedUrl = new URL(value, window.location.origin);
+            } catch {
+                scannedUrl = null;
+            }
+            if (scannedUrl && /^\/medicines\/\d+\/$/.test(scannedUrl.pathname)) {
+                stopCamera();
+                status.textContent = "Opening medicine details…";
+                window.location.assign(new URL(scannedUrl.pathname, window.location.origin).href);
+                return true;
+            }
+
+            const sampleMedicine = value.match(/^MEDICINE_ID:[A-Z0-9_-]+\r?\nNAME:([^\r\n]+)$/i);
+            if (sampleMedicine) {
+                const medicinesUrl = new URL("/medicines/", window.location.origin);
+                medicinesUrl.searchParams.set("q", sampleMedicine[1].trim());
+                stopCamera();
+                status.textContent = "Showing medicines matching " + sampleMedicine[1].trim() + "…";
+                window.location.assign(medicinesUrl.href);
+                return true;
+            }
+
+            status.textContent = "This is not a supported medicine QR code.";
+            return false;
+        };
+
+        const decodeCanvas = () => {
+            if (!window.jsQR || canvas.width === 0 || canvas.height === 0) return null;
+            const image = context.getImageData(0, 0, canvas.width, canvas.height);
+            const code = window.jsQR(image.data, image.width, image.height, { inversionAttempts: "attemptBoth" });
+            return code ? code.data : null;
+        };
+
+        const decodeImage = (image) => {
+            const width = image.naturalWidth;
+            const height = image.naturalHeight;
+            canvas.width = width;
+            canvas.height = height;
+            context.drawImage(image, 0, 0);
+
+            const fullImageResult = decodeCanvas();
+            if (fullImageResult) return fullImageResult;
+
+            const cropWidth = Math.max(1, Math.ceil(width * 0.4));
+            const cropHeight = Math.max(1, Math.ceil(height * 0.5));
+            const scale = Math.min(2, 1600 / Math.max(cropWidth, cropHeight));
+            const positions = (length, cropSize) => {
+                const result = [];
+                const step = Math.max(1, Math.floor(cropSize * 0.75));
+                for (let position = 0; position + cropSize < length; position += step) {
+                    result.push(position);
+                }
+                const lastPosition = length - cropSize;
+                if (!result.includes(lastPosition)) result.push(lastPosition);
+                return result;
+            };
+
+            for (const top of positions(height, cropHeight)) {
+                for (const left of positions(width, cropWidth)) {
+                    canvas.width = Math.round(cropWidth * scale);
+                    canvas.height = Math.round(cropHeight * scale);
+                    context.drawImage(image, left, top, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+                    const result = decodeCanvas();
+                    if (result) return result;
+                }
+            }
+            return null;
+        };
+
+        const scanCameraFrame = (timestamp) => {
+            if (!cameraStream) return;
+            if (video.readyState === video.HAVE_ENOUGH_DATA && timestamp - lastScanAt > 150) {
+                lastScanAt = timestamp;
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const result = decodeCanvas();
+                if (result && openDecodedCode(result)) return;
+            }
+            animationFrame = requestAnimationFrame(scanCameraFrame);
+        };
+
+        startButton.addEventListener("click", async function() {
+            if (!window.jsQR) {
+                status.textContent = "The QR scanner could not load. Check your internet connection and refresh.";
+                return;
+            }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                status.textContent = "Camera scanning is not supported by this browser. Try a QR image instead.";
+                return;
+            }
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+                video.srcObject = cameraStream;
+                video.classList.remove("d-none");
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                status.textContent = "Point the camera at a medicine QR code.";
+                await video.play();
+                animationFrame = requestAnimationFrame(scanCameraFrame);
+            } catch (error) {
+                stopCamera();
+                console.error("Unable to start the QR scanner.", error);
+                status.textContent = "Could not access the camera. Allow camera permission or choose a QR image.";
+            }
+        });
+
+        stopButton.addEventListener("click", function() {
+            stopCamera();
+            status.textContent = "Camera stopped.";
+        });
+
+        imageInput.addEventListener("change", function() {
+            const file = imageInput.files[0];
+            if (!file) return;
+            if (!window.jsQR) {
+                status.textContent = "The QR scanner could not load. Check your internet connection and refresh.";
+                return;
+            }
+            const image = new Image();
+            image.onload = function() {
+                const result = decodeImage(image);
+                if (!result || !openDecodedCode(result)) {
+                    if (!result) status.textContent = "No QR code was found in that image.";
+                }
+                URL.revokeObjectURL(image.src);
+            };
+            image.onerror = function() {
+                status.textContent = "Could not read that image file.";
+                URL.revokeObjectURL(image.src);
+            };
+            image.src = URL.createObjectURL(file);
+        });
+
+        window.addEventListener("pagehide", stopCamera);
+    });
+</script>
+{% endblock %}

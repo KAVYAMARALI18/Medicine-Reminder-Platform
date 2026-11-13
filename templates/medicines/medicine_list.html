@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Medicines - Medicine Reminder{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">My Medicines</h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'medicine_qr_scanner' %}" class="btn btn-outline-primary fw-bold"><i class="fa-solid fa-qrcode me-2"></i>Scan QR</a>
+        <a href="{% url 'medicine_create' %}" class="btn btn-primary fw-bold"><i class="fa-solid fa-plus me-2"></i>Add Medicine</a>
+    </div>
+</div>
+
+<div class="card border-0 p-4 h-100 shadow-sm">
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-6">
+            <input type="text" name="q" class="form-control" placeholder="Search medicines by name, type, or dosage" value="{{ query }}">
+        </div>
+        <div class="col-md-3">
+            <select name="status" class="form-select">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All medicines</option>
+                <option value="low_stock" {% if status_filter == 'low_stock' %}selected{% endif %}>Low stock</option>
+                <option value="refill_due" {% if status_filter == 'refill_due' %}selected{% endif %}>Refill due</option>
+                <option value="needs_attention" {% if status_filter == 'needs_attention' %}selected{% endif %}>Needs attention</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">Search</button>
+            <a href="{% url 'medicine_list' %}" class="btn btn-outline-secondary flex-fill">Clear</a>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Medicine Name</th>
+                    <th>Type</th>
+                    <th>Dosage</th>
+                    <th>Frequency</th>
+                    <th>Stock</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for medicine in medicines %}
+                <tr>
+                    <td><span class="fw-bold">{{ medicine.name }}</span></td>
+                    <td><span class="badge bg-secondary">{{ medicine.medicine_type }}</span></td>
+                    <td>{{ medicine.dosage }}</td>
+                    <td>{{ medicine.frequency }}</td>
+                    <td>
+                        <span class="{% if medicine.quantity <= medicine.low_stock_threshold %}text-danger fw-bold{% endif %}">
+                            {{ medicine.quantity }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'medicine_detail' medicine.pk %}" class="btn btn-sm btn-outline-secondary" aria-label="View {{ medicine.name }}"><i class="fa-solid fa-eye"></i></a>
+                        <a href="{% url 'medicine_edit' medicine.pk %}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen"></i></a>
+                        <a href="{% url 'medicine_delete' medicine.pk %}" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">No medicines found. Click 'Add Medicine' to get started.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

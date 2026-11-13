@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Symptom Checker - MedRemind{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Symptom Checker</h2>
+        <p class="text-muted mb-0">Select the symptoms you are experiencing.</p>
+    </div>
+    <a href="{% url 'symptoms:assessment_history' %}" class="btn btn-outline-primary">
+        <i class="fa-solid fa-clock-rotate-left me-2"></i>Assessment history
+    </a>
+</div>
+
+<div class="alert alert-warning border-0" role="note">
+    <i class="fa-solid fa-triangle-exclamation me-2"></i>{{ disclaimer }}
+</div>
+
+<form method="post" id="symptom-assessment-form" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="card border-0 p-4 shadow-sm mb-4">
+        <div class="row g-3 align-items-end mb-4">
+            <div class="col-md-7">
+                <label for="symptom-search" class="form-label fw-semibold">Search symptoms</label>
+                <input type="search" class="form-control" id="symptom-search" placeholder="Search by symptom name">
+            </div>
+            <div class="col-md-5">
+                <label for="symptom-category" class="form-label fw-semibold">Filter by category</label>
+                <select class="form-select" id="symptom-category">
+                    <option value="">All categories</option>
+                    {% for group in category_groups %}
+                    <option value="{{ group.name }}">{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        {% if form.symptoms.errors %}
+        <div class="alert alert-danger py-2" role="alert">{{ form.symptoms.errors }}</div>
+        {% endif %}
+
+        {% for group in category_groups %}
+        <section class="symptom-category-group mb-4" data-category="{{ group.name }}">
+            <h5 class="fw-semibold mb-3">{{ group.name }}</h5>
+            <div class="row g-3">
+                {% for symptom in group.symptoms %}
+                <div class="col-sm-6 col-lg-4 symptom-option" data-name="{{ symptom.name|lower }}">
+                    <label class="card h-100 p-3 symptom-choice" for="symptom-{{ symptom.pk }}">
+                        <span class="d-flex align-items-center gap-3">
+                            <input class="form-check-input symptom-checkbox flex-shrink-0" type="checkbox" name="symptoms" id="symptom-{{ symptom.pk }}" value="{{ symptom.pk }}" {% if symptom.pk|stringformat:"s" in selected_symptom_ids %}checked{% endif %}>
+                            <span class="fw-medium">{{ symptom.name }}</span>
+                        </span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+
+        <div class="mb-3">
+            <h6 class="fw-semibold">Selected symptoms</h6>
+            <div id="selected-symptom-tags" class="d-flex flex-wrap gap-2" aria-live="polite">
+                <span class="text-muted" id="no-selected-symptoms">No symptoms selected.</span>
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="id_duration" class="form-label fw-semibold">How long have you had these symptoms?</label>
+                <input type="text" name="duration" maxlength="100" required class="form-control" id="id_duration" placeholder="For example, since yesterday" value="{{ form.data.duration|default:'' }}">
+                {% if form.duration.errors %}<div class="text-danger small mt-1">{{ form.duration.errors }}</div>{% endif %}
+            </div>
+            <div class="col-md-8">
+                <label for="id_additional_notes" class="form-label fw-semibold">Additional information (optional)</label>
+                <textarea name="additional_notes" maxlength="1000" rows="2" class="form-control" id="id_additional_notes" placeholder="Avoid including identifying information.">{{ form.data.additional_notes|default:'' }}</textarea>
+                {% if form.additional_notes.errors %}<div class="text-danger small mt-1">{{ form.additional_notes.errors }}</div>{% endif %}
+            </div>
+        </div>
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary" id="submit-assessment">
+                <i class="fa-solid fa-magnifying-glass me-2"></i>Review symptoms
+            </button>
+            <span class="small text-muted ms-2 d-none" id="assessment-loading" role="status">Saving assessment…</span>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const search = document.getElementById("symptom-search");
+        const category = document.getElementById("symptom-category");
+        const options = Array.from(document.querySelectorAll(".symptom-option"));
+        const checkboxes = Array.from(document.querySelectorAll(".symptom-checkbox"));
+        const selected = document.getElementById("selected-symptom-tags");
+        const empty = document.getElementById("no-selected-symptoms");
+        const form = document.getElementById("symptom-assessment-form");
+        const submit = document.getElementById("submit-assessment");
+        const loading = document.getElementById("assessment-loading");
+
+        const filterSymptoms = () => {
+            const query = search.value.trim().toLowerCase();
+            const selectedCategory = category.value;
+            options.forEach(option => {
+                const group = option.closest(".symptom-category-group");
+                const matches = option.dataset.name.includes(query)
+                    && (!selectedCategory || group.dataset.category === selectedCategory);
+                option.classList.toggle("d-none", !matches);
+            });
+            document.querySelectorAll(".symptom-category-group").forEach(group => {
+                group.classList.toggle("d-none", !Array.from(group.querySelectorAll(".symptom-option"))
+                    .some(option => !option.classList.contains("d-none")));
+            });
+        };
+
+        const renderSelected = () => {
+            selected.querySelectorAll(".selected-symptom-tag").forEach(tag => tag.remove());
+            const checked = checkboxes.filter(input => input.checked);
+            empty.classList.toggle("d-none", checked.length > 0);
+            checked.forEach(input => {
+                const tag = document.createElement("span");
+                tag.className = "badge rounded-pill bg-primary selected-symptom-tag";
+                tag.textContent = input.closest("label").querySelector(".fw-medium").textContent.trim();
+                selected.appendChild(tag);
+            });
+        };
+
+        search.addEventListener("input", filterSymptoms);
+        category.addEventListener("change", filterSymptoms);
+        checkboxes.forEach(input => input.addEventListener("change", renderSelected));
+        form.addEventListener("submit", function() {
+            submit.disabled = true;
+            loading.classList.remove("d-none");
+        });
+        renderSelected();
+    });
+</script>
+{% endblock %}

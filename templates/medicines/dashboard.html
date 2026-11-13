@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Medicine Reminder{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Dashboard</h2>
+    <div class="d-flex align-items-center gap-3">
+        <p class="text-muted mb-0">{{ today|date:"F j, Y" }}</p>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="voice-reminders-toggle" data-user-id="{{ request.user.pk }}">
+            <i class="fa-solid fa-volume-high me-1"></i>Enable voice reminders
+        </button>
+    </div>
+</div>
+<p id="voice-reminders-status" class="small text-muted mb-3" aria-live="polite"></p>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card p-4 border-0 h-100">
+            <div class="d-flex align-items-center">
+                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3 me-3">
+                    <i class="fa-solid fa-pills fa-xl"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted mb-1">Total Medicines</h6>
+                    <h3 class="fw-bold mb-0">{{ total_medicines }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-4 border-0 h-100">
+            <div class="d-flex align-items-center">
+                <div class="bg-success bg-opacity-10 text-success rounded-circle p-3 me-3">
+                    <i class="fa-solid fa-check-double fa-xl"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted mb-1">Taken Today</h6>
+                    <h3 class="fw-bold mb-0">{{ completed_today }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-4 border-0 h-100">
+            <div class="d-flex align-items-center">
+                <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-3 me-3">
+                    <i class="fa-solid fa-triangle-exclamation fa-xl"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted mb-1">Missed Today</h6>
+                    <h3 class="fw-bold mb-0">{{ missed_today }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-4 border-0 h-100">
+            <div class="d-flex align-items-center">
+                <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-3 me-3">
+                    <i class="fa-solid fa-clock fa-xl"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted mb-1">Next Reminder</h6>
+                    <h3 class="fw-bold mb-0" id="next-reminder-text">{% if next_reminder_time %}{{ next_reminder_time|time:"H:i" }}{% else %}--:--{% endif %}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 p-4 h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">Adherence Score</h5>
+                <span class="badge bg-success rounded-pill">7-day trend</span>
+            </div>
+            <div class="display-6 fw-bold text-primary mb-2">{{ adherence_rate }}%</div>
+            <div class="progress" role="progressbar" aria-label="Adherence score" aria-valuenow="{{ adherence_rate }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar bg-success" style="width: {{ adherence_rate }}%"></div>
+            </div>
+            <small class="text-muted mt-3 d-block">Based on your completed doses over the last 7 days.</small>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 p-4 h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">Upcoming Refills</h5>
+                <a href="{% url 'refill_tracking' %}" class="btn btn-sm btn-outline-primary">View all</a>
+            </div>
+            {% if refill_alerts %}
+                <ul class="list-group list-group-flush">
+                    {% for refill in refill_alerts|slice:':3' %}
+                    <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ refill.medicine.name }}</strong><br>
+                            <small class="text-muted">{{ refill.next_due_date|date:"M j, Y" }}</small>
+                        </div>
+                        <span class="badge {% if refill.is_due %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                            {% if refill.is_due %}Due now{% else %}{{ refill.days_left }}d{% endif %}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="alert alert-success border-0 mb-0">No refill reminders due soon.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-0 p-4 shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div>
+                    <h5 class="fw-bold mb-1">Symptom Checker &amp; Health Information</h5>
+                    <p class="text-muted mb-0">{{ symptom_assessment_count }} saved private assessment{{ symptom_assessment_count|pluralize }}</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'symptoms:checker' %}" class="btn btn-primary"><i class="fa-solid fa-stethoscope me-2"></i>Check symptoms</a>
+                    <a href="{% url 'symptoms:disease_list' %}" class="btn btn-outline-primary">Health information</a>
+                    <a href="{% url 'symptoms:assessment_history' %}" class="btn btn-outline-secondary">Assessment history</a>
+                </div>
+            </div>
+            {% if recent_symptom_assessments %}
+            <div class="d-flex flex-wrap gap-2">
+                {% for assessment in recent_symptom_assessments %}
+                <a href="{% url 'symptoms:assessment_result' assessment.pk %}" class="badge rounded-pill bg-light text-dark text-decoration-none border p-2">
+                    {{ assessment.created_at|date:"M j" }} · {{ assessment.symptoms.all|join:", " }}
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No symptom assessments yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card border-0 p-4 h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">Today's Schedule</h5>
+                <a href="{% url 'medicine_list' %}" class="btn btn-sm btn-outline-primary">View all</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Time</th>
+                            <th>Medicine</th>
+                            <th>Dosage</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in today_schedule %}
+                        <tr>
+                            <td>{{ item.time|time:"H:i" }}</td>
+                            <td>
+                                <span class="fw-bold">{{ item.medicine.name }}</span><br>
+                                <small class="text-muted">{{ item.medicine.medicine_type }}</small>
+                            </td>
+                            <td>{{ item.medicine.dosage }}</td>
+                            <td>
+                                <span class="badge {% if item.status == 'Taken' %}bg-success {% elif item.status == 'Missed' %}bg-danger {% elif item.status == 'Skipped' %}bg-warning text-dark {% else %}bg-secondary{% endif %}">
+                                    {{ item.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <form method="post" action="{% url 'update_reminder_status' item.reminder.pk %}" class="d-flex flex-wrap gap-2">
+                                    {% csrf_token %}
+                                    <button type="submit" name="status" value="Taken" class="btn btn-sm btn-success">Taken</button>
+                                    <button type="submit" name="status" value="Skipped" class="btn btn-sm btn-warning text-dark">Skip</button>
+                                    <button type="submit" name="status" value="Missed" class="btn btn-sm btn-danger">Missed</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No medicines scheduled for today.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 p-4 h-100 shadow-sm mb-4">
+            <h5 class="fw-bold mb-4">Low Stock Alert</h5>
+            {% if low_stock_medicines %}
+                {% for medicine in low_stock_medicines %}
+                <div class="alert alert-warning border-0 mb-2 d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ medicine.name }}</strong><br>
+                        <small>{{ medicine.quantity }} left</small>
+                    </div>
+                    <span class="badge bg-warning text-dark">Low</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-success border-0 mb-0">
+                    All medicines are stocked well.
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="card border-0 p-4 h-100 shadow-sm">
+            <h5 class="fw-bold mb-4">Weekly Adherence</h5>
+            <canvas id="adherenceChart" style="max-height: 250px;"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const toggle = document.getElementById("voice-reminders-toggle");
+        const status = document.getElementById("voice-reminders-status");
+        const voiceKey = `medremind-voice-enabled-${toggle.dataset.userId}`;
+        const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+
+        if (!canSpeak) {
+            toggle.disabled = true;
+            status.textContent = "Voice reminders are not supported by this browser.";
+            return;
+        }
+
+        const isEnabled = () => localStorage.getItem(voiceKey) === "true";
+        const refreshToggle = () => {
+            toggle.innerHTML = isEnabled()
+                ? '<i class="fa-solid fa-volume-xmark me-1"></i>Disable voice reminders'
+                : '<i class="fa-solid fa-volume-high me-1"></i>Enable voice reminders';
+            status.textContent = isEnabled()
+                ? "Voice reminders are enabled while this dashboard is open."
+                : "Enable voice reminders to hear medicine names and scheduled times.";
+        };
+
+        toggle.addEventListener("click", function() {
+            localStorage.setItem(voiceKey, String(!isEnabled()));
+            if (isEnabled()) {
+                const utterance = new SpeechSynthesisUtterance("Voice medicine reminders are enabled.");
+                window.speechSynthesis.speak(utterance);
+            } else {
+                window.speechSynthesis.cancel();
+            }
+            refreshToggle();
+        });
+        refreshToggle();
+
+        const formatSpokenTime = (time) => {
+            const [hourText, minute] = time.split(":");
+            const hour = Number(hourText);
+            return `${hour % 12 || 12}:${minute} ${hour >= 12 ? "PM" : "AM"}`;
+        };
+
+        const checkVoiceReminders = async () => {
+            if (!isEnabled()) return;
+            try {
+                const response = await fetch("{% url 'check_reminders' %}", {
+                    headers: { "Accept": "application/json" },
+                    cache: "no-store"
+                });
+                if (!response.ok) throw new Error(`Reminder check failed (${response.status}).`);
+                const data = await response.json();
+                if (!isEnabled()) return;
+                for (const reminder of data.reminders) {
+                    const spokenKey = `medremind-spoken-${toggle.dataset.userId}-${reminder.date}-${reminder.id}`;
+                    if (localStorage.getItem(spokenKey)) continue;
+                    const utterance = new SpeechSynthesisUtterance(
+                        `Reminder. It is ${formatSpokenTime(reminder.time)}. Time to take ${reminder.medicine}.`
+                    );
+                    utterance.onerror = () => {
+                        status.textContent = "The browser could not speak the reminder. Check your device's speech settings.";
+                    };
+                    window.speechSynthesis.speak(utterance);
+                    localStorage.setItem(spokenKey, "true");
+                }
+            } catch (error) {
+                console.error("Unable to check voice reminders.", error);
+                status.textContent = "Unable to check for voice reminders. Please refresh the dashboard to try again.";
+            }
+        };
+
+        checkVoiceReminders();
+        window.setInterval(checkVoiceReminders, 15000);
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('adherenceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ weekly_labels|safe }},
+                datasets: [{
+                    label: 'Doses Taken',
+                    data: {{ weekly_data|safe }},
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    tension: 0.35,
+                    fill: true,
+                    pointRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
