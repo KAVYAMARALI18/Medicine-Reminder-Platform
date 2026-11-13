@@ -128,6 +128,21 @@ class MedicineFeatureTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Enable voice reminders')
 
+    def test_dashboard_lists_only_medicines_added_by_current_user(self):
+        Medicine.objects.create(
+            user=self.other_user,
+            name='Other user medicine',
+            dosage='1 capsule',
+            start_date=date.today(),
+        )
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Daily medicine')
+        self.assertContains(response, 'My Medicines')
+        self.assertNotContains(response, 'Other user medicine')
+
     def test_refill_page_renders_when_user_has_no_medicines(self):
         self.medicine.delete()
 

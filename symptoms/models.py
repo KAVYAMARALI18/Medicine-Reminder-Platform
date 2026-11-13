@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 class Symptom(models.Model):
@@ -82,6 +84,54 @@ class SymptomAssessment(models.Model):
 
     def __str__(self):
         return f'Symptom assessment for {self.user} on {self.created_at:%Y-%m-%d}'
+
+
+class DailyWellnessCheckin(models.Model):
+    MOOD_CHOICES = [
+        ('Very low', 'Very low'),
+        ('Low', 'Low'),
+        ('Okay', 'Okay'),
+        ('Good', 'Good'),
+        ('Excellent', 'Excellent'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='wellness_checkins',
+    )
+    date = models.DateField(default=timezone.now)
+    sleep_hours = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0), MaxValueValidator(24)],
+    )
+    hydration_liters = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(10)],
+    )
+    exercise_minutes = models.PositiveIntegerField(default=0)
+    mood = models.CharField(max_length=20, choices=MOOD_CHOICES, default='Okay')
+    energy_level = models.PositiveSmallIntegerField(
+        default=3,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'date'], name='unique_user_daily_wellness_checkin'),
+        ]
+
+    def __str__(self):
+        return f'{self.user} wellness check-in for {self.date}'
 
 
 class AssessmentSymptom(models.Model):

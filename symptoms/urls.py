@@ -6,6 +6,7 @@ app_name = 'symptoms'
 
 urlpatterns = [
     path('', views.symptom_checker, name='checker'),
+    path('wellness/', views.wellness_checkin, name='wellness_checkin'),
     path('assessments/', views.assessment_history, name='assessment_history'),
     path('assessments/<int:pk>/', views.assessment_result, name='assessment_result'),
     path('assessments/<int:pk>/delete/', views.delete_assessment, name='delete_assessment'),

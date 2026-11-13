@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from .medicine_info import lookup_medicine_information
 from .models import (
+    DailyWellnessCheckin,
     DiseaseInformation,
     DiseaseSymptom,
     Symptom,
@@ -150,6 +151,53 @@ class SymptomFeatureTests(TestCase):
         self.assertContains(response, 'HUMAN OTC DRUG')
         self.assertContains(response, 'Educational information only')
         lookup.assert_called_once_with('Example')
+
+    def test_daily_wellness_checkin_tracks_user_health_summary(self):
+        response = self.client.post(
+            reverse('symptoms:wellness_checkin'),
+            {
+                'date': '2026-11-13',
+                'sleep_hours': '7.5',
+                'hydration_liters': '2.5',
+                'exercise_minutes': '30',
+                'mood': 'Good',
+                'energy_level': '4',
+                'notes': 'Felt steady and hydrated.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(DailyWellnessCheckin.objects.filter(user=self.user).exists())
+        self.assertContains(
+            self.client.get(reverse('symptoms:wellness_checkin')),
+            'Felt steady and hydrated.',
+        )
+
+    def test_daily_wellness_checkin_updates_existing_selected_date(self):
+        wellness = DailyWellnessCheckin.objects.create(
+            user=self.user,
+            date='2026-11-12',
+            sleep_hours='6.0',
+            hydration_liters='1.0',
+        )
+
+        response = self.client.post(
+            reverse('symptoms:wellness_checkin'),
+            {
+                'date': '2026-11-12',
+                'sleep_hours': '7.0',
+                'hydration_liters': '2.0',
+                'exercise_minutes': '20',
+                'mood': 'Good',
+                'energy_level': '4',
+                'notes': '',
+            },
+        )
+
+        wellness.refresh_from_db()
+        self.assertRedirects(response, reverse('symptoms:wellness_checkin'))
+        self.assertEqual(DailyWellnessCheckin.objects.filter(user=self.user, date='2026-11-12').count(), 1)
+        self.assertEqual(str(wellness.sleep_hours), '7.0')
 
     def test_api_requires_authentication(self):
         client = APIClient()

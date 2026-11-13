@@ -52,6 +52,7 @@ def dashboard(request):
     now = timezone.localtime(timezone.now()).time()
 
     total_medicines = Medicine.objects.filter(user=user).count()
+    dashboard_medicines = Medicine.objects.filter(user=user).order_by('name')[:5]
     today_logs = MedicineLog.objects.filter(user=user, date=today)
     completed_today = today_logs.filter(status='Taken').count()
     missed_today = today_logs.filter(status='Missed').count()
@@ -89,6 +90,7 @@ def dashboard(request):
 
     context = {
         'total_medicines': total_medicines,
+        'dashboard_medicines': dashboard_medicines,
         'completed_today': completed_today,
         'missed_today': missed_today,
         'low_stock_medicines': low_stock_medicines,
