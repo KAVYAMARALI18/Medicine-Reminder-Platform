@@ -11,6 +11,24 @@
     <a href="{% url 'symptoms:disease_list' %}" class="btn btn-outline-secondary">Health information</a>
 </div>
 <div class="alert alert-warning border-0" role="note">{{ disclaimer }}</div>
+<div class="card border-0 bg-light p-4 shadow-sm mb-4">
+    <h3 class="h6 fw-bold mb-3">Helpful health reminders</h3>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <ul class="mb-0 ps-3">
+                <li>Use this page to compare common symptoms and general health information from official educational sources.</li>
+                <li>Check the label for active ingredients, side effects, and warnings before taking or combining medicines.</li>
+                <li>Seek urgent care for trouble breathing, chest pain, severe weakness, or serious allergic reactions.</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <ul class="mb-0 ps-3">
+                <li>Health information can overlap across conditions, so symptoms alone are not a diagnosis.</li>
+                <li>Follow the linked official sources for the most current public guidance and care recommendations.</li>
+            </ul>
+        </div>
+    </div>
+</div>
 <form method="get" class="card border-0 p-4 shadow-sm mb-4">
     <label for="medicine-query" class="form-label fw-semibold">Medicine name</label>
     <div class="input-group">

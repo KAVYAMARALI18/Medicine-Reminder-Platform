@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Wellness Check-in - MedRemind{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Daily wellness check-in</h2>
+        <p class="text-muted mb-0">Track sleep, hydration, movement, and energy for a simple daily health snapshot.</p>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Back to dashboard</a>
+</div>
+
+<div class="alert alert-warning border-0" role="note">{{ disclaimer }}</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <form method="post" class="card border-0 p-4 shadow-sm">
+            {% csrf_token %}
+            <h3 class="h5 fw-bold mb-3">Today’s wellness snapshot</h3>
+            {{ form.non_field_errors }}
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
+                    {{ form.date }}
+                    {% if form.date.errors %}<div class="text-danger small mt-1">{{ form.date.errors|join:', ' }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.energy_level.id_for_label }}" class="form-label">Energy level</label>
+                    {{ form.energy_level }}
+                    {% if form.energy_level.errors %}<div class="text-danger small mt-1">{{ form.energy_level.errors|join:', ' }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.sleep_hours.id_for_label }}" class="form-label">Sleep (hours)</label>
+                    {{ form.sleep_hours }}
+                    {% if form.sleep_hours.errors %}<div class="text-danger small mt-1">{{ form.sleep_hours.errors|join:', ' }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.hydration_liters.id_for_label }}" class="form-label">Hydration (L)</label>
+                    {{ form.hydration_liters }}
+                    {% if form.hydration_liters.errors %}<div class="text-danger small mt-1">{{ form.hydration_liters.errors|join:', ' }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.exercise_minutes.id_for_label }}" class="form-label">Exercise (minutes)</label>
+                    {{ form.exercise_minutes }}
+                    {% if form.exercise_minutes.errors %}<div class="text-danger small mt-1">{{ form.exercise_minutes.errors|join:', ' }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.mood.id_for_label }}" class="form-label">Mood</label>
+                    {{ form.mood }}
+                    {% if form.mood.errors %}<div class="text-danger small mt-1">{{ form.mood.errors|join:', ' }}</div>{% endif %}
+                </div>
+                <div class="col-12">
+                    <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}<div class="text-danger small mt-1">{{ form.notes.errors|join:', ' }}</div>{% endif %}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Save check-in</button>
+        </form>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card border-0 p-4 shadow-sm mb-4">
+            <h3 class="h5 fw-bold mb-3">Weekly summary</h3>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="bg-light rounded p-3 h-100">
+                        <div class="text-muted small">Average sleep</div>
+                        <div class="fw-bold fs-5">{% if weekly_average.avg_sleep %}{{ weekly_average.avg_sleep|floatformat:1 }} hrs{% else %}—{% endif %}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="bg-light rounded p-3 h-100">
+                        <div class="text-muted small">Average hydration</div>
+                        <div class="fw-bold fs-5">{% if weekly_average.avg_hydration %}{{ weekly_average.avg_hydration|floatformat:1 }} L{% else %}—{% endif %}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="bg-light rounded p-3 h-100">
+                        <div class="text-muted small">Average exercise</div>
+                        <div class="fw-bold fs-5">{% if weekly_average.avg_exercise %}{{ weekly_average.avg_exercise|floatformat:0 }} min{% else %}—{% endif %}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 p-4 shadow-sm">
+            <h3 class="h5 fw-bold mb-3">Recent check-ins</h3>
+            {% if recent_entries %}
+            <div class="list-group list-group-flush">
+                {% for entry in recent_entries %}
+                <div class="list-group-item px-0">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong>{{ entry.date|date:"M j, Y" }}</strong>
+                        <span class="badge bg-light text-dark border">{{ entry.mood }}</span>
+                    </div>
+                    <small class="text-muted d-block">Sleep {{ entry.sleep_hours|default:'—' }} hrs · Hydration {{ entry.hydration_liters|default:'—' }} L · Exercise {{ entry.exercise_minutes|default:'0' }} mins · Energy {{ entry.energy_level }}/5</small>
+                    {% if entry.notes %}<p class="mb-0 mt-2 small">{{ entry.notes }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No check-ins saved yet. Start with today’s entry.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
