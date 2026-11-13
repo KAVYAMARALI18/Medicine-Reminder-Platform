@@ -1,6 +1,24 @@
 from django import forms
 
-from .models import Symptom
+from .models import DailyWellnessCheckin, Symptom
+
+
+class DailyWellnessCheckinForm(forms.ModelForm):
+    class Meta:
+        model = DailyWellnessCheckin
+        fields = [
+            'date',
+            'sleep_hours',
+            'hydration_liters',
+            'exercise_minutes',
+            'mood',
+            'energy_level',
+            'notes',
+        ]
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
 
 
 class SymptomAssessmentForm(forms.Form):

@@ -1,11 +1,15 @@
+from datetime import date
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Avg
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
-from .forms import SymptomAssessmentForm
+from .forms import DailyWellnessCheckinForm, SymptomAssessmentForm
 from .medicine_info import MedicineLookupError, lookup_medicine_information
-from .models import DiseaseInformation, Symptom, SymptomAssessment
+from .models import DailyWellnessCheckin, DiseaseInformation, Symptom, SymptomAssessment
 from .services import analyze_symptoms, get_assessment_conditions
 
 
@@ -68,6 +72,44 @@ def assessment_result(request, pk):
     return render(request, 'symptoms/result.html', {
         'assessment': assessment,
         'conditions': get_assessment_conditions(assessment),
+        'disclaimer': MEDICAL_DISCLAIMER,
+    })
+
+
+@login_required
+def wellness_checkin(request):
+    today = date.today()
+    checkin = DailyWellnessCheckin.objects.filter(user=request.user, date=today).first()
+
+    if request.method == 'POST':
+        submitted_date = parse_date(request.POST.get('date', ''))
+        if submitted_date:
+            checkin = DailyWellnessCheckin.objects.filter(
+                user=request.user,
+                date=submitted_date,
+            ).first()
+        form = DailyWellnessCheckinForm(request.POST, instance=checkin)
+        if form.is_valid():
+            wellness = form.save(commit=False)
+            wellness.user = request.user
+            wellness.save()
+            messages.success(request, 'Your daily wellness check-in has been saved.')
+            return redirect('symptoms:wellness_checkin')
+    else:
+        form = DailyWellnessCheckinForm(instance=checkin)
+
+    recent_entries = DailyWellnessCheckin.objects.filter(user=request.user)[:7]
+    weekly_average = recent_entries.aggregate(
+        avg_sleep=Avg('sleep_hours'),
+        avg_hydration=Avg('hydration_liters'),
+        avg_exercise=Avg('exercise_minutes'),
+    )
+
+    return render(request, 'symptoms/wellness.html', {
+        'form': form,
+        'checkin': checkin,
+        'recent_entries': recent_entries,
+        'weekly_average': weekly_average,
         'disclaimer': MEDICAL_DISCLAIMER,
     })
 
